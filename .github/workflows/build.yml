@@ -25,8 +25,9 @@ jobs:
           fi
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Upload outputs dir
           path: |
             ./app/build/outputs/*
+          retention-days: 7
