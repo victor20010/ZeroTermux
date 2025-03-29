@@ -1,59 +1,34 @@
 name: Build
 
 on:
-  [workflow_dispatch]
+  workflow_dispatch:
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package_variant: [ apt-android-7, apt-android-5 ]
-
     steps:
-      - name: Clone repository
+
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@v2
         with:
-          distribution: 'adopt'
-          java-version: '11'
+          submodules: recursive
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: Clean build directory
-        run: ./gradlew clean
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      - name: Build APKs
-        shell: bash {0}
-        env:
-          PACKAGE_VARIANT: ${{ matrix.package_variant }}
+      - name: Build Debug
         run: |
-          exit_on_error() { echo "$1"; exit 1; }
+          chmod +x gradlew
+          ./gradlew assembledebug
 
-          echo "Setting vars"
-
-          # Set RELEASE_VERSION_NAME to "<CURRENT_VERSION_NAME>+<last_commit_hash>"
-          CURRENT_VERSION_NAME_REGEX='\s+versionName "([^"]+)"$'
-          CURRENT_VERSION_NAME="$(grep -m 1 -E "$CURRENT_VERSION_NAME_REGEX" ./app/build.gradle | sed -r "s/$CURRENT_VERSION_NAME_REGEX/\1/")"
-          RELEASE_VERSION_NAME="v$CURRENT_VERSION_NAME+${GITHUB_SHA:0:7}" # The "+" is necessary so that versioning precedence is not affected
-
-          APK_DIR_PATH="./app/build/outputs/apk/debug"
-          APK_VERSION_TAG="$RELEASE_VERSION_NAME-${{ env.PACKAGE_VARIANT }}-github-debug" # Note the "-", GITHUB_SHA will already have "+" before it
-          APK_BASENAME_PREFIX="termux-app_$APK_VERSION_TAG"
-
-          # Used by attachment steps later
-          echo "APK_DIR_PATH=$APK_DIR_PATH" >> $GITHUB_ENV
-          echo "APK_VERSION_TAG=$APK_VERSION_TAG" >> $GITHUB_ENV
-          echo "APK_BASENAME_PREFIX=$APK_BASENAME_PREFIX" >> $GITHUB_ENV
-
-          echo "Building APKs for '$APK_VERSION_TAG' build"
-          export TERMUX_APP_VERSION_NAME="${RELEASE_VERSION_NAME/v/}" # Used by app/build.gradle
-          export TERMUX_APK_VERSION_TAG="$APK_VERSION_TAG" # Used by app/build.gradle
-          export TERMUX_PACKAGE_VARIANT="${{ env.PACKAGE_VARIANT }}" # Used by app/build.gradle
-          if ! ./gradlew assembleDebug; then
-            exit_on_error "Build failed for '$APK_VERSION_TAG' build."
-          fi
+      - name: Upload Debug Apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/*
