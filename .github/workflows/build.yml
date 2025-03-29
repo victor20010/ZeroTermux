@@ -22,15 +22,18 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Configure JitPack authentication
+      - name: Configure repositories
         run: |
           mkdir -p ~/.gradle
-          echo "allprojects { repositories { maven { url 'https://jitpack.io' } } }" > ~/.gradle/init.gradle
+          echo "allprojects { repositories { maven { url 'https://jitpack.io' } mavenCentral() google() maven { url 'https://repo.eclipse.org/content/repositories/paho-snapshots/' } } }" > ~/.gradle/init.gradle
 
       - name: Update build.gradle
         run: |
           sed -i 's/compile(/implementation(/g' app/build.gradle
           sed -i 's/provided group:/compileOnly group:/g' app/build.gradle
+          # Ensure all dependencies are correct
+          sed -i 's/com.lzy.net:okgo:3.0.4/implementation("com.lzy.net:okgo:3.0.4")/g' app/build.gradle
+          sed -i 's/com.github.getActivity:XToast:6.9/implementation("com.github.getActivity:XToast:6.9")/g' app/build.gradle
 
       - name: Build APKs
         run: ./gradlew assembleDebug --stacktrace --info
